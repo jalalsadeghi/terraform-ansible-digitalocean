@@ -42,53 +42,76 @@ ssh-keygen -t ed25519 -C "your_email@example.com"
 ```
 Upload the public key (`~/.ssh/id_ed25519.pub`) to your DigitalOcean account.
 
+## Obtaining a DigitalOcean API Token
+
+Terraform requires a DigitalOcean API token to manage resources. Follow these steps to generate your token:
+
+1. Log in to your DigitalOcean dashboard.
+2. Navigate to the API section under "Manage" in the left sidebar.
+3. Click Generate New Token under "Personal Access Tokens."
+4. Enter a Token Name (e.g., terraform-access).
+5. Set an expiration date (optional) and select the desired scopes (choose "Read and Write" or "Full Access").
+6. Click Generate Token.
+
+> #### Important: Copy and securely store your token immediately; you will not be able to see it again.
+
+Replace the placeholder in your Terraform configuration file:
+```bash
+provider "digitalocean" {
+  token = "YOUR_DIGITALOCEAN_API_TOKEN"
+}
+```
 ### Deploying Droplets
 Use the provided `main.tf` file to provision three Ubuntu 24.04 Droplets:
 
 ```hcl
-# Terraform Configuration for DigitalOcean	
+# Terraform configuration for creating DigitalOcean Droplets (servers)
 terraform {
   required_providers {
     digitalocean = {
       source  = "digitalocean/digitalocean"
-      version = "~> 2.0"
+      version = "~> 2.37.0"
     }
   }
 }
 
-# DigitalOcean provider configuration
+# Configure DigitalOcean Provider with your personal token
 provider "digitalocean" {
-  token = "YOUR_DIGITALOCEAN_API_TOKEN"  # Replace with your DigitalOcean token
+  token = "YOUR_DIGITALOCEAN_API_TOKEN"  # Replace this with your actual DigitalOcean API token
 }
 
+# Variable to control number of droplets (servers)
 variable "droplet_count" {
-  default = 3
+  default = 3  # This creates 3 droplets by default
 }
 
-# Create SSH key resource on DigitalOcean
+# Create an SSH key resource in DigitalOcean
 resource "digitalocean_ssh_key" "terraform_ssh_key" {
-  name       = "terraform-key"                             # Name of SSH key in DigitalOcean
-  public_key = file("/root/.ssh/id_ed25519.pub")           # Path to your public SSH key
+  name       = "terraform-key"                          # Name for your SSH key in DigitalOcean
+  public_key = file("/root/.ssh/id_ed25519.pub")        # Path to your SSH public key
 }
 
-# Create 3 DigitalOcean droplets with Ubuntu 24.04
+# Create multiple DigitalOcean Droplets with Ubuntu 24.04
 resource "digitalocean_droplet" "myservers" {
-  count  = var.droplet_count                               # Number of droplets to create
-  image  = "ubuntu-24-04-x64"                              # OS image
-  name   = "terraform-server-${count.index + 1}"           # Naming droplets sequentially
-  region = "fra1"                                          # Droplet region (Frankfurt)
-  size   = "s-1vcpu-512mb-10gb"                            # Droplet size/type
+  count    = var.droplet_count                          # Number of droplets to create
+  image    = "ubuntu-24-04-x64"                         # OS image to install
+  name     = "terraform-server-${count.index + 1}"      # Naming droplets sequentially
+  region   = "fra1"                                     # Region for droplets (Frankfurt)
+  size     = "s-1vcpu-512mb-10gb"                       # Droplet size (smallest, cheapest)
 
-  # Assign the SSH key for droplet access
-  ssh_keys = [digitalocean_ssh_key.terraform_ssh_key.fingerprint]
+  ssh_keys = [digitalocean_ssh_key.terraform_ssh_key.fingerprint] # SSH key for access
 }
 
-resource "digitalocean_project_resources" "first_project_assignment" {
-  project = "first-project"
-  resources = digitalocean_droplet.myservers[*].urn
-  depends_on = [digitalocean_droplet.myservers]
+# Output public IP addresses of created droplets
+output "droplet_public_ips" {
+  description = "Public IP addresses of created droplets"
+  value       = digitalocean_droplet.myservers[*].ipv4_address
 }
+
 ```
+
+> You can add more advanced features such as "Projects" to group your resources.
+> But this simplified example is designed to be easier to understand for beginners.
 
 Run Terraform commands:
 ```bash
@@ -104,6 +127,18 @@ terraform plan -out=my-plan
 Review the saved plan (my-plan) carefully, and once satisfied, apply it using:
 ```bash
 terraform apply my-plan
+```
+Terraform outputs the IP addresses like this:
+```bash
+Apply complete! Resources: 3 added, 0 changed, 0 destroyed.
+
+Outputs:
+
+droplet_public_ips = [
+  "64.226.120.206",
+  "46.101.170.163",
+  "164.92.244.243"
+]
 ```
 
 ## Server Configuration with Ansible
