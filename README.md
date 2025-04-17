@@ -8,11 +8,15 @@
 - [Infrastructure Provisioning with Terraform](#infrastructure-provisioning-with-terraform)
   - [Installing Terraform](#installing-terraform)
   - [Creating SSH Keys](#creating-ssh-keys)
+  - [Obtaining a DigitalOcean API Token](#Obtaining-a-DigitalOcean-API-Token)
   - [Deploying Droplets](#deploying-droplets)
 - [Server Configuration with Ansible](#server-configuration-with-ansible)
   - [Installing Ansible](#installing-ansible)
   - [Configuring Ansible Inventory](#configuring-ansible-inventory)
   - [Running the Ansible Playbook](#running-the-ansible-playbook)
+  - [First SSH Connection to Droplets](#First-SSH-Connection-to-Droplets)
+  - [Resolving SSH Key Conflicts](#Resolving-SSH-Key-Conflicts)
+  - [Example Ansible Playbook Output](#Example-Ansible-Playbook-Output)
 - [Verification and Cleanup](#verification-and-cleanup)
 - [Conclusion](#conclusion)
 
@@ -232,6 +236,37 @@ Use the provided `playbook.yml`:
           Docker version: {{ docker_version.stdout }}
           Docker Compose version: {{ compose_version.stdout }}
 ```
+### First SSH Connection to Droplets
+After Terraform provisions your droplets, you'll need to connect via SSH at least once manually to each server. This ensures your local system recognizes and trusts the new servers' identities.
+When you connect for the first time, SSH will display a prompt similar to this:
+
+```bash
+The authenticity of host '64.226.120.206' can't be established.
+ED25519 key fingerprint is SHA256:examplefingerprint1234567890abcdef.
+Are you sure you want to continue connecting (yes/no/[fingerprint])?
+```
+Type yes and press enter to accept the server’s fingerprint and continue connecting. Repeat this for each droplet individually:
+```bash
+ssh root@64.226.120.206
+ssh root@46.101.170.163
+ssh root@164.92.244.243
+```
+After typing yes for each server, SSH will add their fingerprints to your local file at ~/.ssh/known_hosts. This confirmation will only appear during the very first connection to each droplet.
+
+### Resolving SSH Key Conflicts
+If in the future you destroy and recreate your droplets and Terraform assigns the same IP addresses, you might encounter warnings like this:
+```bash
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@    WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!     @
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+```
+This occurs because SSH remembers the fingerprints from previous connections and detects a mismatch. To resolve this issue, remove the old fingerprints using:
+```bash
+ssh-keygen -R 64.226.120.206
+ssh-keygen -R 46.101.170.163
+ssh-keygen -R 164.92.244.243
+```
+Then reconnect via SSH as described above and confirm the new fingerprints again.
 
 ### Example Ansible Playbook Output
 When running the Ansible playbook, you should expect to see an output similar to the following, indicating that Docker and Docker Compose have been successfully installed and configured on all servers:
